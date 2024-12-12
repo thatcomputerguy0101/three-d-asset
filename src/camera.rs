@@ -423,9 +423,7 @@ impl Camera {
         self.z_far = z_far;
         let field_of_view_y = field_of_view_y.into();
         self.projection_type = ProjectionType::Perspective { field_of_view_y };
-        self.projection =
-            self.projection_type
-                .generate(None, self.viewport().aspect(), z_near, z_far);
+        self.update_projection();
     }
 
     ///
@@ -439,12 +437,7 @@ impl Camera {
         self.z_near = z_near;
         self.z_far = z_far;
         self.projection_type = ProjectionType::Orthographic { height };
-        self.projection = self.projection_type.generate(
-            Some(self.position.distance(self.target)),
-            self.viewport.aspect(),
-            z_near,
-            z_far,
-        );
+        self.update_projection();
     }
 
     ///
@@ -462,14 +455,7 @@ impl Camera {
         self.projection_type = ProjectionType::Custom {
             projection: Box::new(projection),
         };
-        self.projection = self.projection_type.generate(
-            self.projection_type
-                .requires_zoom()
-                .then(|| self.position.distance(self.target)),
-            self.viewport.aspect(),
-            z_near,
-            z_far,
-        )
+        self.update_projection();
     }
 
     ///
@@ -479,14 +465,7 @@ impl Camera {
     pub fn set_viewport(&mut self, viewport: Viewport) -> bool {
         if self.viewport != viewport {
             self.viewport = viewport;
-            self.projection = self.projection_type.generate(
-                self.projection_type
-                    .requires_zoom()
-                    .then(|| self.position.distance(self.target)),
-                self.viewport.aspect(),
-                self.z_near,
-                self.z_far,
-            );
+            self.update_projection();
             true
         } else {
             false
@@ -507,13 +486,20 @@ impl Camera {
             self.up,
         );
         if self.projection_type.requires_zoom() {
-            self.projection = self.projection_type.generate(
-                Some(self.position.distance(self.target)),
-                self.viewport.aspect(),
-                self.z_near,
-                self.z_far,
-            );
+            self.update_projection();
         }
+    }
+
+    /// Regenerate the projection matrix from the projection type and parameters
+    fn update_projection(&mut self) {
+        self.projection = self.projection_type.generate(
+            self.projection_type
+                .requires_zoom()
+                .then(|| self.position.distance(self.target)),
+            self.viewport.aspect(),
+            self.z_near,
+            self.z_far,
+        );
     }
 
     /// Returns the [Frustum] for this camera.
